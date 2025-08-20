@@ -1,0 +1,126 @@
+name: RudderStack SDET Framework CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Daily run at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test against'
+        required: true
+        default: 'prod'
+        type: choice
+        options:
+          - prod
+          - qa
+          - dev
+      test_tags:
+        description: 'Test tags to run'
+        required: false
+        default: '@smoke'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium]
+        # Add firefox, webkit for cross-browser testing
+        # browser: [chromium, firefox, webkit]
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install Dependencies
+      run: |
+        npm ci
+        npx playwright install
+        npx playwright install-deps
+        
+    - name: Type Check
+      run: npm run type-check
+      
+    - name: Lint Code  
+      run: npm run lint
+      
+    - name: Run Tests
+      env:
+        BROWSER: ${{ matrix.browser }}
+        HEADLESS: true
+        ENVIRONMENT: ${{ github.event.inputs.environment || 'prod' }}
+        RUDDERSTACK_USERNAME: ${{ secrets.RUDDERSTACK_USERNAME }}
+        RUDDERSTACK_PASSWORD: ${{ secrets.RUDDERSTACK_PASSWORD }}
+        RUDDERSTACK_WRITE_KEY: ${{ secrets.RUDDERSTACK_WRITE_KEY }}
+        RUDDERSTACK_DATA_PLANE_URL: ${{ secrets.RUDDERSTACK_DATA_PLANE_URL }}
+        REQUEST_CATCHER_URL: ${{ secrets.REQUEST_CATCHER_URL }}
+        CI: true
+      run: |
+        if [ "${{ github.event.inputs.test_tags }}" != "" ]; then
+          npm run test -- --tags "${{ github.event.inputs.test_tags }}"
+        else
+          npm run test:smoke
+        fi
+        
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-${{ matrix.browser }}
+        path: |
+          reports/
+          !reports/node_modules
+        retention-days: 7
+        
+    - name: Upload Screenshots
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: screenshots-${{ matrix.browser }}
+        path: reports/screenshots/
+        retention-days: 7
+        
+    - name: Upload Videos
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: videos-${{ matrix.browser }}
+        path: reports/videos/
+        retention-days: 7
+
+  notify:
+    needs: test
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'schedule'
+    
+    steps:
+    - name: Notify on Failure
+      if: needs.test.result == 'failure'
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        text: 'RudderStack SDET Framework daily tests failed!'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        
+    - name: Notify on Success  
+      if: needs.test.result == 'success'
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        text: 'RudderStack SDET Framework daily tests passed successfully!'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

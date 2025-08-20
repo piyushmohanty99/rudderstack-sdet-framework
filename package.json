@@ -1,0 +1,60 @@
+{
+  "name": "rudderstack-sdet-framework",
+  "version": "1.0.0",
+  "description": "Production-grade Playwright automation framework for RudderStack SDET assignment",
+  "main": "index.js",
+  "scripts": {
+    "test": "cucumber-js --require-module ts-node/register --require features/step-definitions/**/*.ts --require src/hooks/**/*.ts",
+    "test:smoke": "cucumber-js --require-module ts-node/register --require features/step-definitions/**/*.ts --require src/hooks/**/*.ts --tags '@smoke'",
+    "test:regression": "cucumber-js --require-module ts-node/register --require features/step-definitions/**/*.ts --require src/hooks/**/*.ts --tags '@regression'",
+    "test:api": "cucumber-js --require-module ts-node/register --require features/step-definitions/**/*.ts --require src/hooks/**/*.ts --tags '@api'",
+    "test:ui": "cucumber-js --require-module ts-node/register --require features/step-definitions/**/*.ts --require src/hooks/**/*.ts --tags '@ui'",
+    "test:headless": "HEADLESS=true npm run test",
+    "test:headed": "HEADLESS=false npm run test",
+    "test:parallel": "PARALLEL_WORKERS=4 npm run test",
+    "test:serial": "PARALLEL_WORKERS=1 npm run test",
+    "lint": "eslint src/**/*.ts features/**/*.ts --fix",
+    "format": "prettier --write src/**/*.ts features/**/*.ts",
+    "type-check": "tsc --noEmit",
+    "clean": "rimraf reports/screenshots reports/videos reports/html-report reports/allure-results",
+    "pretest": "npm run clean && npm run type-check",
+    "report": "allure generate reports/allure-results --clean -o reports/allure-report && allure open reports/allure-report",
+    "ci": "npm run clean && npm run test:headless",
+    "dev": "npm run test:headed -- --tags '@smoke'",
+    "health-check": "node -e \"require('./src/utils/ApiHelper').checkHealth()\""
+  },
+  "keywords": [
+    "playwright",
+    "cucumber",
+    "typescript",
+    "automation",
+    "testing",
+    "rudderstack",
+    "sdet"
+  ],
+  "author": "SDET Framework Developer",
+  "license": "MIT",
+  "dependencies": {
+    "@cucumber/cucumber": "^10.0.1",
+    "@playwright/test": "^1.40.0",
+    "playwright": "^1.40.0",
+    "axios": "^1.6.0",
+    "winston": "^3.11.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2",
+    "eslint": "^8.52.0",
+    "@typescript-eslint/eslint-plugin": "^6.8.0",
+    "@typescript-eslint/parser": "^6.8.0",
+    "prettier": "^3.0.3",
+    "rimraf": "^5.0.5",
+    "allure-cucumberjs": "^2.5.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
